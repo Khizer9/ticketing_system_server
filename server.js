@@ -1,16 +1,21 @@
-//  Requirments
+const dotenv = require("dotenv");
+const cors = require("cors");
 
-// client -> ticket -> submit -> ((title, description, file upload, category (tech, sales, etc), P-level (P0  urgent, p1 medium, p2 low, p3 very low  )))
-//        -> submit
-//        -> ticket -> status -> solved || discussion
+dotenv.config();
 
-// admin   -> all rights
-// manager -> to Yank the tickets
+const express = require("express");
+let app = express();
 
-// agent   ->
+// datebase configurations
 
-// register (client), login, current user, create acccount
+app.use(cors());
+app.use(express.json());
 
-// console.log("am here");
+// all routes
+app.use("/", (req, res) => {
+  res.send("am running");
+});
 
-console.log("check ffor commit");
+const port = process.env.PORT || 5000;
+
+app.listen(port, () => console.log(`Server is running on port ${port}`));
