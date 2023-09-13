@@ -16,11 +16,14 @@ const userSchema = new mongoose.Schema({
     type: Date,
   },
 
-  category: { type: String, required: true },
   image: {
     url: String,
     public_id: String,
   },
+
+  // categories: [{ type: mongoose.Schema.Types.ObjectId, ref: "Category" }],
+  category: { type: mongoose.Schema.Types.ObjectId, ref: "Category" },
+  quotaPerDay: { type: Number },
 });
 
 const User = mongoose.model("User", userSchema);

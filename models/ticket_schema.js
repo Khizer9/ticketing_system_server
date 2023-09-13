@@ -3,29 +3,46 @@ const mongoose = require("mongoose");
 const ticketSchema = new mongoose.Schema({
   title: { type: String, required: true },
   description: { type: String, required: true },
-  category: { type: String, required: true },
-  priority: { type: String, enum: ["P1", "P2", "P3", "P4"], required: true },
+  category: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "Category",
+    required: true,
+  },
+  priority: {
+    type: String,
+    enum: ["Low", "Medium", "High", "Critical"],
+    required: true,
+  },
   status: {
     type: String,
-    enum: ["open", "in-progress", "resolved", "review"],
-    default: "open",
+    enum: ["Open", "In Progress", "Resolved", "Reopened"],
+    default: "Open",
   },
-  client: { type: mongoose.Schema.Types.ObjectId, ref: "User", required: true },
-  assignedAgent: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-  resolutionTime: { type: Number }, // Store resolution time in minutes
-  createdAt: { type: Date, default: Date.now },
-  pickedAt: Date, // Timestamp when an agent picked the ticket
-  respondedAt: Date, // Timestamp when an agent responded to the ticket
-  solvedAt: Date, // Timestamp when the ticket was solved
-  reviewedAt: Date, // Timestamp when the ticket went to review
-  yankedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" }, // Manager who yanked the ticket
-  logs: [
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: "User",
+    required: true,
+  },
+  pickedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  pickedAt: { type: Date }, // Timestamp when ticket is picked up
+  assignedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+  comments: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comment" }],
+  images: [{ type: String }],
+  escalated: [
     {
-      timestamp: { type: Date, default: Date.now },
-      action: String,
-      agent: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      yes: { type: Boolean, default: false },
+      why: { type: String },
+      escalatedTo: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      escalatedAt: { type: Date, default: Date.now }, // Timestamp when escalated
     },
   ],
+  firstSLABreach: { type: Boolean, default: false },
+  secondSLABreach: { type: Boolean, default: false },
+  pickupSLATime: { type: Number, default: 10 }, // SLA time for pickup in minutes
+  responseSLATime: { type: Number, default: 10 }, // SLA time for first response in minutes
+  firstRespondedAt: { type: Date }, // Timestamp for the first response
+  resolvedAt: { type: Date },
+  createdAt: { type: Date, default: Date.now },
 });
 
 const Ticket = mongoose.model("Ticket", ticketSchema);

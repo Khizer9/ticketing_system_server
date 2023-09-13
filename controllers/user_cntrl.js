@@ -1,6 +1,7 @@
 const User = require("../models/user_schema");
-const { hashPassword, comparePassword } = require("../utils/Auth-Middlewares");
-const jwt = require('jsonwebtoken')
+const Ticket = require("../models/ticket_schema");
+const { hashPassword, comparePassword } = require("../utils/Auth");
+const jwt = require("jsonwebtoken");
 
 const RegisterAnyone = async (req, res) => {
   const { name, email, password, role, category } = req.body;
@@ -89,8 +90,10 @@ const Login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    let user = await User.findOne({ email })
-      .populate("image", "_id url public_id")
+    let user = await User.findOne({ email }).populate(
+      "image",
+      "_id url public_id"
+    );
     if (!user) return res.json({ error: "No user found" });
     if (!password) return res.json({ error: "Please enter your password" });
 
@@ -130,9 +133,190 @@ const currentUser = async (req, res) => {
   }
 };
 
+// sending
+const UpdateUserByAdmin = async (req, res) => {
+  try {
+    const data = {};
+
+    if (req.body.name) {
+      data.name = req.body.name;
+    }
+
+    if (req.body.password) {
+      if (req.body.password.length < 6) {
+        return res.json({
+          error: "password required & should be minimum 6 chr long",
+        });
+      } else {
+        data.password = await hashPassword(req.body.password);
+      }
+    }
+
+    if (req.body.role) {
+      data.role = req.body.role;
+    }
+
+    if (req.body.category) {
+      data.category = req.body.category;
+    }
+
+    let user = await User.findByIdAndUpdate(req.body.id, data, {
+      new: true,
+    });
+
+    user.password = undefined;
+    user.role = undefined;
+    user.passwordResetOTP = undefined;
+    user.passwordResetExpiry = undefined;
+
+    res.json(user);
+  } catch (error) {
+    if (error.code === 11000) {
+      return res.json({ error: "Duplicate error" });
+    }
+    console.log("failed error", error);
+  }
+};
+
+// get user by id
+// sending
+const GetUser = async (req, res) => {
+  try {
+    const user = await User.findOne({ _id: req.params.id }).select(
+      "-password -secret -passwordResetOTP -passwordResetExpiry "
+    );
+    res.json(user);
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+// sending
+const GetAllUsers = async (req, res) => {
+  //   console.log(req.body.blocked, "from getting all users");
+  try {
+    const users = await User.find().select(
+      "-password -secret -passwordResetOTP -passwordResetExpiry"
+    );
+    res.json({ users });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+const DeleteUser = async (req, res) => {
+  try {
+    const user = await User.findByIdAndDelete({ _id: req.params.id });
+    res.json({ ok: true });
+  } catch (error) {
+    console.log(error);
+  }
+};
+
+// sending
+const updateUserByUser = async (req, res) => {
+  try {
+    const { name, email, password, status, image } = req.body;
+
+    const userFromDb = await User.findById(req.user._id);
+
+    // // check if user is himself/herself
+    // if (userFromDb._id.toString() !== req.user._id.toString()) {
+    //   return res.status(403).send("You are not allowed to update this user");
+    // }
+
+    // check password length
+    if (password && password.length < 6) {
+      return res.json({
+        error: "Password is required and should be 6 characters long",
+      });
+    }
+
+    const hashedPassword = password ? await hashPassword(password) : undefined;
+    const updated = await User.findByIdAndUpdate(
+      req.user._id,
+      {
+        name: name || userFromDb.name,
+        email: email || userFromDb.email,
+        password: hashedPassword || userFromDb.password,
+
+        // image: image || userFromDb.image,
+        // exp: exp || userFromDb.exp,
+      },
+      { new: true }
+    ).populate("image");
+
+    res.json(updated);
+  } catch (err) {
+    console.log(err);
+  }
+};
+
+// getting user who solved most of the tickets
+const getAgentsByMostTicketsSolved = async () => {
+  try {
+    const aggregatedTickets = await Ticket.aggregate([
+      { $match: { status: "Resolved" } },
+      {
+        $group: {
+          _id: "$assignedTo",
+          solvedCount: { $sum: 1 },
+        },
+      },
+      {
+        $sort: { solvedCount: -1 },
+      },
+    ]);
+
+    // Fetch the actual user details
+    const userIds = aggregatedTickets.map((a) => a._id);
+    const users = await User.find({ _id: { $in: userIds }, role: "agent" });
+
+    // Return the users sorted by most tickets solved
+    let resUsers = users.sort((a, b) => {
+      const countA = aggregatedTickets.find(
+        (ticket) => String(ticket._id) === String(a._id)
+      ).solvedCount;
+      const countB = aggregatedTickets.find(
+        (ticket) => String(ticket._id) === String(b._id)
+      ).solvedCount;
+      return countB - countA;
+    });
+
+    res.json(resUsers);
+  } catch (error) {
+    console.log(err);
+  }
+};
+
+const getUsersWhoBreachedSecondSLA = async () => {
+  try {
+    const tickets = await Ticket.find({
+      secondSLABreach: true,
+      status: { $ne: "Resolved" },
+    }).distinct("assignedTo");
+
+    // Fetch the actual user details
+    const users = await User.find({ _id: { $in: tickets }, role: "agent" });
+
+    res.json(users);
+  } catch (error) {
+    console.log(error);
+  }
+};
+
 module.exports = {
   RegisterAnyone,
   RegisterForClient,
   Login,
   currentUser,
+
+  updateUserByUser,
+  UpdateUserByAdmin,
+  DeleteUser,
+  GetAllUsers,
+  GetUser,
+
+  getAgentsByMostTicketsSolved,
+  getUsersWhoBreachedSecondSLA,
 };
