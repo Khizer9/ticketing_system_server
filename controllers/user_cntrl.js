@@ -253,7 +253,7 @@ const updateUserByUser = async (req, res) => {
 };
 
 // getting user who solved most of the tickets
-const getAgentsByMostTicketsSolved = async () => {
+const getAgentsByMostTicketsSolved = async (req, res) => {
   try {
     const aggregatedTickets = await Ticket.aggregate([
       { $match: { status: "Resolved" } },
@@ -289,21 +289,52 @@ const getAgentsByMostTicketsSolved = async () => {
   }
 };
 
-const getUsersWhoBreachedSecondSLA = async () => {
+// users who breach second SLA
+const getUsersWhoBreachedSecondSLA = async (req, res) => {
   try {
-    const tickets = await Ticket.find({
+    // Find all tickets where the second SLA has been breached
+    const ticketsWithSLABreach = await Ticket.find({
       secondSLABreach: true,
-      status: { $ne: "Resolved" },
-    }).distinct("assignedTo");
+    }).populate("createdBy");
 
-    // Fetch the actual user details
-    const users = await User.find({ _id: { $in: tickets }, role: "agent" });
+    // Collect user IDs and their associated ticket IDs
+    const userTicketsMap = new Map();
+    for (const ticket of ticketsWithSLABreach) {
+      if (ticket.createdBy && ticket.createdBy._id) {
+        const userId = ticket.createdBy._id.toString();
+        if (!userTicketsMap.has(userId)) {
+          userTicketsMap.set(userId, []);
+        }
+        userTicketsMap.get(userId).push(ticket._id.toString());
+      }
+    }
 
-    res.json(users);
+    // Find users by their IDs and add their breached ticket IDs
+    const userIds = Array.from(userTicketsMap.keys());
+    const users = await User.find({ _id: { $in: userIds } });
+    const usersWithTickets = users.map((user) => {
+      const userObj = user.toObject();
+      userObj.SecondSLABreachedTickets = userTicketsMap.get(
+        user._id.toString()
+      );
+      delete userObj.password; // Remove the password from the output
+      delete userObj.__v; // Remove the version key from the output
+      return userObj;
+    });
+
+    return res.status(200).json({
+      message: "Users who breached the second SLA",
+      users: usersWithTickets,
+    });
   } catch (error) {
-    console.log(error);
+    console.log("Error fetching users who breached the second SLA:", error);
+    return res
+      .status(500)
+      .json({ error: "An error occurred while processing your request" });
   }
 };
+
+
 
 module.exports = {
   RegisterAnyone,

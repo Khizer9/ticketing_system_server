@@ -12,6 +12,7 @@ const userSchema = new mongoose.Schema({
   passwordResetOTP: {
     type: String,
   },
+  
   passwordResetExpiry: {
     type: Date,
   },

@@ -55,8 +55,22 @@ const AdminAndManager = async (req, res, next) => {
   }
 };
 
+const isAgent = async (req, res, cb) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (user.role !== "agent") {
+      return res.status(400).send("Unathorized");
+    } else {
+      cb();
+    }
+  } catch (err) {
+    console.log(err);
+  }
+};
+
 module.exports = {
   loginReq,
   isAdmin,
   AdminAndManager,
+  isAgent,
 };

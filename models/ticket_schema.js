@@ -36,6 +36,7 @@ const ticketSchema = new mongoose.Schema({
       escalatedAt: { type: Date, default: Date.now }, // Timestamp when escalated
     },
   ],
+  reopenCount: { type: Number, default: 0 },
   firstSLABreach: { type: Boolean, default: false },
   secondSLABreach: { type: Boolean, default: false },
   pickupSLATime: { type: Number, default: 10 }, // SLA time for pickup in minutes
