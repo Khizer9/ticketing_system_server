@@ -11,9 +11,7 @@ const RegisterAnyone = async (req, res) => {
     return res.json({ error: "Name is required" });
   } else if (!role) {
     return res.json({ error: "Role is required" });
-  } else if (!category) {
-    return res.json({ error: "category is required" });
-  } else if (!password || password.length < 6) {
+  }  else if (!password || password.length < 6) {
     return res.json({
       error: "Password is required and should be 6 charactor long",
     });
